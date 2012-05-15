@@ -7,37 +7,18 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <avr/pgmspace.h>
+#include <avr/eeprom.h>
 #include <util/delay.h>
 #include "usiTwiSlave.h"
 #include "ADC_tiny.h"
 
-#define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
-#define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
 
 
+enum {READX, READY, READZ, SETSENSIVITY};
 
-uint16_t value;
-uint16_t analog;
+#define SLAVEADDRESS 0x26
 
-/* Brief: This section determines what format to return the value in. */
 
-enum { DATA1, DATA2, RAW };
-
-//-----------------------------------------------------------------------------
-
-/* This section allows you to select between three different modes. In this sample
-each return the value of the analog at different levels just to give an idea of how
-it can be used. */
-
-inline void mode(uint8_t mode, uint8_t on)
-{
-	if (on){
-		value = readADC(mode);
-		PORTB ^= (1<<PB1);
-	}
-
-}
 
 /* Brief: The main function.
  * The program entry point. Initates TWI and enters eternal loop, waiting for data.
@@ -47,18 +28,25 @@ int main(void)
 	//OSCCAL=51; //set to 12MHZ;
 
 
-	unsigned char slaveAddress, temp;
-
-	//DDRB &= ~(1<<DDB1);        // pb1 set up as input
-	DDRB &= ~(1<<DDB3);        // pb3 set up as input
+	DDRB &= ~((1<<DDB3)|(1<<DDB4)|(1<<DDB5));        // pb3,4,5 set up as input
 	DDRB |= (1<<DDB1);		// Set pb1 as output
 
 
-	slaveAddress = 0x26;		// This can be change to your own address
-	usiTwiSlaveInit(slaveAddress);
+	uint8_t sens = eeprom_read_byte((uint8_t*)0);
+
+
+	if (sens == 6){
+		PORTB |= (1<<PB1);
+	}else{
+		PORTB &= ~(1<<PB1);
+	}
+
+	bool reading = true;
+
+
+	usiTwiSlaveInit(SLAVEADDRESS);
 
 	initADC();
-	_delay_ms(10);
 
 
 	sei();
@@ -71,16 +59,50 @@ int main(void)
 
 		if(usiTwiDataInReceiveBuffer())
 		{
-			temp = usiTwiReceiveByte();
-			switch (temp)
-			{
-			case 1: mode(1, 1);   break;		// the case is selected by a single
-			case 2: mode(2, 1);   break;		// digit in the master code. (1,2 or 3)
-			case 3: mode(3, 1);   break;
+			uint8_t temp = usiTwiReceiveByte();
+
+			if (reading){
+				uint16_t value=0;
+					switch (temp)
+					{
+						case READX:
+
+							value = readADC(2);
+							usiTwiTransmitByte(value>>8);
+							usiTwiTransmitByte(value&0xFF);
+							break;
+
+						case READY:
+							value = readADC(3);
+							usiTwiTransmitByte(value>>8);
+							usiTwiTransmitByte(value&0xFF);
+							break;
+
+						case READZ:
+							value = readADC(0);
+							usiTwiTransmitByte(value>>8);
+							usiTwiTransmitByte(value&0xFF);
+							break;
+
+						case SETSENSIVITY :
+							reading=false;
+							break;
+
+					}
+			}else{
+					switch(temp){
+						case 2:
+							PORTB &= ~(1<<PB1);
+							eeprom_write_byte((uint8_t*)0,2);
+							break;
+						case 6:
+							PORTB |= (1<<PB1);
+							eeprom_write_byte((uint8_t*)0,6);
+							break;
+					}
+					reading=true;
 			}
 
-			usiTwiTransmitByte(value>>8);
-			usiTwiTransmitByte(value&0xFF);
 		}
 
 		// Do something else while waiting for the TWI transceiver to complete.
