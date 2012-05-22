@@ -14,7 +14,7 @@
 
 
 
-enum {READX, READY, READZ, SETSENSIVITY};
+enum {READ, SETSENSIVITY};
 
 #define SLAVEADDRESS 0x26
 
@@ -28,7 +28,7 @@ int main(void)
 	//OSCCAL=51; //set to 12MHZ;
 
 
-	DDRB &= ~((1<<DDB3)|(1<<DDB4)|(1<<DDB5));        // pb3,4,5 set up as input
+	DDRB &= ~((1<<DDB3)|(1<<DDB4) |(1<<DDB5));        // pb3,4,5 set up as input
 	DDRB |= (1<<DDB1);		// Set pb1 as output
 
 
@@ -65,21 +65,16 @@ int main(void)
 				uint16_t value=0;
 					switch (temp)
 					{
-						case READX:
-
-							value = readADC(2);
+						case READ:
+							value = readADCBlocking(2);
+							readADC(3);
 							usiTwiTransmitByte(value>>8);
 							usiTwiTransmitByte(value&0xFF);
-							break;
-
-						case READY:
-							value = readADC(3);
+							value = getADC();
+							readADC(0);
 							usiTwiTransmitByte(value>>8);
 							usiTwiTransmitByte(value&0xFF);
-							break;
-
-						case READZ:
-							value = readADC(0);
+							value = getADC();
 							usiTwiTransmitByte(value>>8);
 							usiTwiTransmitByte(value&0xFF);
 							break;

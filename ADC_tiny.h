@@ -18,16 +18,28 @@ inline void initADC()
 	ADCSRA = _BV(ADEN) | _BV(ADPS2) | _BV(ADPS1);
 }
 
+inline uint16_t getADC(){
+	while ( ADCSRA & ( 1 << ADSC ));
 
-inline uint16_t readADC (uint8_t channel)
+	return (ADCL | (ADCH << 8));
+}
+
+inline uint16_t readADCBlocking (uint8_t channel)
 {
 	ADMUX = (ADMUX&0xF0) | channel ;
 
 	ADCSRA |= (1<<ADSC);
 
-    while ( ADCSRA & ( 1 << ADSC ));
-
-    return (ADCL | (ADCH << 8));
+    return getADC();
 }
+
+inline void readADC (uint8_t channel)
+{
+	ADMUX = (ADMUX&0xF0) | channel ;
+
+	ADCSRA |= (1<<ADSC);
+}
+
+
 
 #endif /* ADC_TINY_H_ */
