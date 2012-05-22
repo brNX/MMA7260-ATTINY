@@ -1,1 +1,9 @@
 Board for MMA7260 Accelerometer using an ATtiny for I2C/TWI
+
+I2C Device Address 0x26
+
+address 	command 	Type 		description
+0x00 		GETVALUE 	Read		device sends 6 bytes (2bytes per axis)
+0x01		SETSENS 	Write		set sensivity: 2g send value 2 , 6g send value 6
+
+
